@@ -1,0 +1,44 @@
+-- =========================================================================
+-- Data demo & panduan menetapkan admin pertama
+-- =========================================================================
+
+-- LANGKAH 1: Daftar sekurang-kurangnya satu akaun melalui aplikasi (mod "guru")
+-- terlebih dahulu, contohnya admin@sktj.edu.my. Selepas berjaya log masuk kali
+-- pertama (dan rekod dicipta dalam jadual public.profiles), jalankan arahan
+-- di bawah untuk menaikkan taraf akaun tersebut kepada 'admin':
+
+-- update public.profiles
+-- set role = 'admin'
+-- where email = 'admin@sktj.edu.my';
+
+-- LANGKAH 2 (PILIHAN): Data demo rekod minit curai.
+-- Gantikan '00000000-0000-0000-0000-000000000000' dengan id sebenar pengguna
+-- (boleh didapati daripada jadual auth.users selepas mendaftar).
+
+-- insert into public.minit_curai (
+--   user_id, nama_kursus, jenis_aktiviti, tarikh_mula, tarikh_tamat,
+--   masa_mula, masa_tamat, tempat, anjuran, peringkat, bilangan_jam,
+--   nombor_rujukan, nama_guru_manual, jawatan, gred, mata_pelajaran,
+--   tahun_kelas, emel, telefon, objektif, isi_kandungan, status
+-- ) values (
+--   '00000000-0000-0000-0000-000000000000',
+--   'Bengkel Pedagogi Abad Ke-21',
+--   'Bengkel',
+--   '2026-02-10', '2026-02-11',
+--   '08:00', '17:00',
+--   'Dewan SK Taman Jasmin',
+--   'PPD Hulu Langat',
+--   'Daerah',
+--   16,
+--   'PPD/2026/045',
+--   'Cikgu Demo',
+--   'Guru Cemerlang',
+--   'DG44',
+--   'Bahasa Melayu',
+--   'Tahun 5',
+--   'demo@sktj.edu.my',
+--   '012-3456789',
+--   '1. Meningkatkan kefahaman guru tentang PdPc abad ke-21.\n2. Mengaplikasikan strategi pengajaran aktif.',
+--   'Strategi pembelajaran berpusatkan murid, penggunaan alat digital, penilaian formatif.',
+--   'Lengkap'
+-- );
