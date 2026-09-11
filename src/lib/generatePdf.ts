@@ -24,6 +24,77 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+function blobToImageElement(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(blob)
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(img)
+    }
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl)
+      reject(err)
+    }
+    img.src = objectUrl
+  })
+}
+
+// Gambar dokumentasi diambil dari telefon selalunya mempunyai maklumat EXIF
+// "orientation" (putaran automatik) yang hanya dihormati oleh galeri/pelayar,
+// bukan oleh jsPDF (yang terus salin data piksel mentah). Fungsi ini
+// meluruskan gambar terlebih dahulu (guna createImageBitmap dengan
+// imageOrientation:"from-image" jika disokong pelayar, jika tidak fallback
+// kepada <img> biasa) sebelum ditukar kepada dataURL, supaya gambar dalam
+// PDF sentiasa tegak/betul seperti dalam pratonton.
+async function loadImageOrientedForPdf(
+  url: string
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  try {
+    const res = await fetch(url, { mode: 'cors' })
+    const blob = await res.blob()
+
+    let width: number
+    let height: number
+    let drawable: CanvasImageSource
+    let bitmapUntukTutup: ImageBitmap | null = null
+
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' })
+        drawable = bitmap
+        bitmapUntukTutup = bitmap
+        width = bitmap.width
+        height = bitmap.height
+      } catch {
+        const imgEl = await blobToImageElement(blob)
+        drawable = imgEl
+        width = imgEl.naturalWidth
+        height = imgEl.naturalHeight
+      }
+    } else {
+      const imgEl = await blobToImageElement(blob)
+      drawable = imgEl
+      width = imgEl.naturalWidth
+      height = imgEl.naturalHeight
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(drawable, 0, 0, width, height)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+
+    bitmapUntukTutup?.close()
+
+    return { dataUrl, width, height }
+  } catch {
+    return null
+  }
+}
+
 function namaGuruAkhir(rekod: MinitCurai): string {
   return rekod.nama_guru_manual?.trim() || rekod.nama_guru_dropdown?.trim() || '-'
 }
@@ -177,18 +248,24 @@ export async function janaPdfMinitCurai(rekod: MinitCurai): Promise<{ blob: Blob
   // --- 8. Dokumentasi Bergambar ---
   if (rekod.dokumentasi && rekod.dokumentasi.length > 0) {
     tajukBahagian('8. DOKUMENTASI BERGAMBAR')
-    let x = MARGIN
     const lebarGambar = (CONTENT_W - 10) / 2
     const tinggiGambar = 55
     pageBreakIfNeeded(tinggiGambar + 12)
     const yMula = y
     for (let i = 0; i < rekod.dokumentasi.length; i++) {
       const gambar = rekod.dokumentasi[i]
-      const dataUrl = await loadImageAsDataUrl(gambar.image_url)
+      const hasil = await loadImageOrientedForPdf(gambar.image_url)
       const posX = MARGIN + (i % 2) * (lebarGambar + 10)
-      if (dataUrl) {
+      if (hasil) {
         try {
-          doc.addImage(dataUrl, 'JPEG', posX, yMula, lebarGambar, tinggiGambar, undefined, 'FAST')
+          // Kekalkan nisbah asal gambar (letterbox) supaya tidak herot/tertarik
+          // di dalam kotak lebarGambar x tinggiGambar.
+          const skala = Math.min(lebarGambar / hasil.width, tinggiGambar / hasil.height)
+          const lebarLukis = hasil.width * skala
+          const tinggiLukis = hasil.height * skala
+          const offsetX = posX + (lebarGambar - lebarLukis) / 2
+          const offsetY = yMula + (tinggiGambar - tinggiLukis) / 2
+          doc.addImage(hasil.dataUrl, 'JPEG', offsetX, offsetY, lebarLukis, tinggiLukis, undefined, 'FAST')
         } catch {
           doc.rect(posX, yMula, lebarGambar, tinggiGambar)
         }
