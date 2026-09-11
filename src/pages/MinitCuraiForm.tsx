@@ -298,31 +298,49 @@ const MinitCuraiForm: React.FC = () => {
   }
 
   const simpanTandatangan = async (minitCuraiId: string) => {
-    if (tandatanganPenyedia) {
-      await supabase.from('tandatangan').upsert(
+    // PENTING: simpan rekod tandatangan jika MANA-MANA medan diisi (nama,
+    // jawatan, tarikh, ATAU lukisan tandatangan) — bukan hanya bila ada
+    // lukisan tandatangan. Sebelum ini, jika pengguna isi nama/jawatan/tarikh
+    // tetapi tidak/belum sempat melukis tandatangan, SEMUA maklumat itu turut
+    // tidak disimpan.
+    const adaDataPenyedia =
+      penyediaNama.trim() || penyediaJawatan.trim() || penyediaTarikh || tandatanganPenyedia
+    if (adaDataPenyedia) {
+      const { error } = await supabase.from('tandatangan').upsert(
         {
           minit_curai_id: minitCuraiId,
           jenis: 'penyedia',
-          nama: penyediaNama,
-          jawatan: penyediaJawatan,
-          tarikh: penyediaTarikh,
+          nama: penyediaNama.trim() || null,
+          jawatan: penyediaJawatan.trim() || null,
+          tarikh: penyediaTarikh || null,
           signature_data: tandatanganPenyedia
         },
         { onConflict: 'minit_curai_id,jenis' }
       )
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('Gagal simpan tandatangan penyedia:', error.message)
+      }
     }
-    if (tandatanganPengesah) {
-      await supabase.from('tandatangan').upsert(
+
+    const adaDataPengesah =
+      pengesahNama.trim() || pengesahJawatan.trim() || pengesahTarikh || tandatanganPengesah
+    if (adaDataPengesah) {
+      const { error } = await supabase.from('tandatangan').upsert(
         {
           minit_curai_id: minitCuraiId,
           jenis: 'pengesah',
-          nama: pengesahNama,
-          jawatan: pengesahJawatan,
-          tarikh: pengesahTarikh,
+          nama: pengesahNama.trim() || null,
+          jawatan: pengesahJawatan.trim() || null,
+          tarikh: pengesahTarikh || null,
           signature_data: tandatanganPengesah
         },
         { onConflict: 'minit_curai_id,jenis' }
       )
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('Gagal simpan tandatangan pengesah:', error.message)
+      }
     }
   }
 
